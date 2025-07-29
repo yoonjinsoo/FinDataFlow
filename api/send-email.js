@@ -19,8 +19,12 @@ export default async function handler(req, res) {
   try {
     const { companyName, contactName, email, phone, website, fundingAmount } = req.body;
 
+    // Log the request for debugging
+    console.log('Email request received:', { companyName, contactName, email, phone, website, fundingAmount });
+
     // Validate required fields
     if (!companyName || !contactName || !email || !phone) {
+      console.log('Validation failed: missing required fields');
       res.status(400).json({ error: '필수 정보가 누락되었습니다.' });
       return;
     }
@@ -49,33 +53,42 @@ export default async function handler(req, res) {
 
 신청 시간: ${new Date().toLocaleString('ko-KR')}`;
 
-    // Use FormSubmit.co service to send email (free service)
-    const formData = new FormData();
-    formData.append('name', contactName);
-    formData.append('email', email);
-    formData.append('phone', phone);
-    formData.append('subject', subject);
-    formData.append('message', emailBody);
-    formData.append('_next', 'https://your-site.com/thank-you');
-    formData.append('_captcha', 'false');
+    // Use Formspree service (free tier)
+    console.log('Attempting to send email via Formspree...');
 
-    const formsubmitResponse = await fetch('https://formsubmit.co/krystal983340@gmail.com', {
+    const formspreeResponse = await fetch('https://formspree.io/f/mjkbqpzr', {
       method: 'POST',
-      body: formData
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        email: email,
+        name: contactName,
+        phone: phone,
+        subject: subject,
+        message: emailBody,
+        company: companyName,
+        website: normalizedWebsite,
+        funding: fundingAmount || '미입력',
+        _replyto: email,
+        _subject: subject
+      })
     });
 
-    if (formsubmitResponse.ok) {
+    console.log('Formspree response status:', formspreeResponse.status);
+    const responseData = await formspreeResponse.json();
+    console.log('Formspree response data:', responseData);
+
+    if (formspreeResponse.ok) {
+      console.log('Email sent successfully via Formspree');
       res.status(200).json({
         success: true,
         message: '신청이 완료되었습니다. 1영업일 안에 연락드리겠습니다.'
       });
     } else {
-      console.error('FormSubmit error:', formsubmitResponse.statusText);
-      // 실패해도 성공으로 처리 (사용자 경험을 위해)
-      res.status(200).json({
-        success: true,
-        message: '신청이 완료되었습니다. 1영업일 안에 연락드리겠습니다.'
-      });
+      console.error('Formspree error:', responseData);
+      throw new Error('Formspree service failed: ' + JSON.stringify(responseData));
     }
 
   } catch (error) {
