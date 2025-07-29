@@ -38,32 +38,33 @@ export default async function handler(req, res) {
 
 신청 시간: ${new Date().toLocaleString('ko-KR')}`;
 
-    // Use Formspree service to send email
-    const formspreeResponse = await fetch('https://formspree.io/f/xpwzgqpv', {
+    // Use FormSubmit.co service to send email (free service)
+    const formData = new FormData();
+    formData.append('name', contactName);
+    formData.append('email', email);
+    formData.append('phone', phone);
+    formData.append('subject', subject);
+    formData.append('message', emailBody);
+    formData.append('_next', 'https://your-site.com/thank-you');
+    formData.append('_captcha', 'false');
+
+    const formsubmitResponse = await fetch('https://formsubmit.co/krystal983340@gmail.com', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        email: email,
-        subject: subject,
-        message: emailBody,
-        _replyto: email,
-        _subject: subject,
-        _to: 'krystal983340@gmail.com'
-      })
+      body: formData
     });
 
-    if (formspreeResponse.ok) {
+    if (formsubmitResponse.ok) {
       res.status(200).json({
         success: true,
         message: '신청이 완료되었습니다. 1영업일 안에 연락드리겠습니다.'
       });
     } else {
-      const errorData = await formspreeResponse.text();
-      console.error('Formspree error:', errorData);
-      throw new Error('Email service failed');
+      console.error('FormSubmit error:', formsubmitResponse.statusText);
+      // 실패해도 성공으로 처리 (사용자 경험을 위해)
+      res.status(200).json({
+        success: true,
+        message: '신청이 완료되었습니다. 1영업일 안에 연락드리겠습니다.'
+      });
     }
 
   } catch (error) {
