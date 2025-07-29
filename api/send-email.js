@@ -25,6 +25,17 @@ export default async function handler(req, res) {
       return;
     }
 
+    // Normalize website URL
+    const normalizeUrl = (url) => {
+      if (!url) return '미입력';
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+      }
+      return `https://${url}`;
+    };
+
+    const normalizedWebsite = normalizeUrl(website);
+
     // Email content
     const subject = `[성장 파트너십 신청] - ${companyName}`;
     const emailBody = `새로운 파트너십 신청서가 도착했습니다.
@@ -33,7 +44,7 @@ export default async function handler(req, res) {
 - 담당자명: ${contactName}
 - 이메일 주소: ${email}
 - 연락처: ${phone}
-- 쇼핑몰 주소: ${website || '미입력'}
+- 쇼핑몰 주소: ${normalizedWebsite}
 - 필요 자금 규모: ${fundingAmount || '미입력'}
 
 신청 시간: ${new Date().toLocaleString('ko-KR')}`;

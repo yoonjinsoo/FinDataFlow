@@ -737,12 +737,23 @@ export default function Home() {
                     </Label>
                     <Input
                       id="website"
-                      type="url"
-                      placeholder="https://www.yourstore.com"
+                      type="text"
+                      placeholder="www.yourstore.com 또는 https://www.yourstore.com"
                       disabled={!allQualified}
-                      {...register('website', { required: true })}
+                      {...register('website', {
+                        required: true,
+                        pattern: {
+                          value: /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/,
+                          message: "올바른 웹사이트 주소를 입력해주세요"
+                        }
+                      })}
                       className={`${!allQualified ? 'bg-muted cursor-not-allowed' : ''}`}
                     />
+                    {errors.website && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {errors.website.message || "올바른 웹사이트 주소를 입력해주세요"}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
