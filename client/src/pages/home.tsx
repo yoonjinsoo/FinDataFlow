@@ -105,7 +105,11 @@ export default function Home() {
     question3: null,
   });
 
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  const { register, handleSubmit, formState: { errors }, watch, reset } = useForm<FormData>();
   
   const allQualified = Object.values(qualifications).every(answer => answer === true);
   const formData = watch();
@@ -131,24 +135,57 @@ export default function Home() {
     }));
   };
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     if (!allQualified) {
       alert('자격 요건을 모두 충족해야 신청이 가능합니다.');
       return;
     }
 
-    const subject = `[성장 파트너십 신청] - ${data.companyName}`;
-    const body = `새로운 파트너십 신청서가 도착했습니다.
+    setIsSubmitting(true);
+    setSubmitMessage('');
+    setShowSuccessMessage(false);
 
-- 업체명: ${data.companyName}
-- 담당자명: ${data.contactName}
-- 이메일 주소: ${data.email}
-- 연락처: ${data.phone}
-- 쇼핑몰 주소: ${data.website}
-- 필요 자금 규모: ${data.fundingAmount}`;
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName: data.companyName,
+          contactName: data.contactName,
+          email: data.email,
+          phone: data.phone,
+          website: data.website,
+          fundingAmount: data.fundingAmount,
+        }),
+      });
 
-    const mailtoLink = `mailto:your.google.email@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoLink;
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setSubmitMessage(result.message);
+        setShowSuccessMessage(true);
+        reset(); // 폼 초기화
+        setQualifications({
+          question1: null,
+          question2: null,
+          question3: null,
+        });
+
+        // 3초 후 성공 메시지 숨기기
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+        }, 5000);
+      } else {
+        throw new Error(result.error || '전송 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('Email sending error:', error);
+      setSubmitMessage(error instanceof Error ? error.message : '전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -723,17 +760,37 @@ export default function Home() {
                   </div>
 
                   <div className="pt-6">
+                    {showSuccessMessage && (
+                      <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center">
+                          <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                          <p className="text-green-800 font-medium">{submitMessage}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {submitMessage && !showSuccessMessage && (
+                      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-center">
+                          <XCircle className="w-5 h-5 text-red-600 mr-2" />
+                          <p className="text-red-800 font-medium">{submitMessage}</p>
+                        </div>
+                      </div>
+                    )}
+
                     <Button
                       type="submit"
-                      disabled={!allQualified}
+                      disabled={!allQualified || isSubmitting}
                       className={`w-full px-8 py-4 text-lg font-semibold flex items-center justify-center space-x-2 ${
-                        allQualified 
-                          ? 'bg-accent hover:bg-accent/90 text-accent-foreground' 
+                        allQualified && !isSubmitting
+                          ? 'bg-accent hover:bg-accent/90 text-accent-foreground'
                           : 'bg-muted text-muted-foreground cursor-not-allowed'
                       }`}
                     >
                       <Rocket className="w-4 h-4" />
-                      <span>성장 파트너십 신청하기</span>
+                      <span>
+                        {isSubmitting ? '전송 중...' : '성장 파트너십 신청하기'}
+                      </span>
                     </Button>
                     <p className="text-sm text-muted-foreground text-center mt-3">
                       위의 자격 요건을 모두 충족해야 신청이 가능합니다.
